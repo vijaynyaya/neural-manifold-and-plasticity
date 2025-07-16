@@ -110,15 +110,15 @@ def cost(result: np.ndarray, target_traj: np.ndarray, trial_order: np.ndarray) -
   Calculate the cost (mean squared error) between the network output and target trajectories.
 
   Parameters:
-  * result: np.ndarray of shape (trials, tsteps, n_outputs)
+  result: np.ndarray of shape (trials, tsteps, n_outputs)
     Network output for each trial
-  * target_traj: np.ndarray of shape (n_targets, tsteps, n_targets)
+  target_traj: np.ndarray of shape (n_targets, tsteps, n_targets)
     Target trajectories for each trial
-  * trial_order: np.ndarray of shape (trials,)
+  trial_order: np.ndarray of shape (trials,)
     Order of trials mapping each trial to its corresponding target
 
   Returns:
-  * cost: float
+  cost: float
     Mean squared error across all trials
   """
   total_cost = 0.0
