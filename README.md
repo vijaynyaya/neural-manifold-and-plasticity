@@ -10,9 +10,31 @@ We predict that: 1) manifold separability in linear latent spaces will decrease 
 
 This work contributes to a deeper understanding of learning-related neural dynamics and could inform the design of more robust neural interfaces and motor rehabilitation protocols.
 
+## Project Structure
 
+```
+neural-manifold-and-plasticity/
+│
+├── manifolks/             # Main Python package: core code, models, utilities
+│   ├── __init__.py
+│   ├── ...                # (other modules)
+│
+├── notebooks/             # Jupyter notebooks for experiments & simulation runs
+│   ├── FORCE.ipynb
+│   ├── RLS.ipynb
+│   └── ...                # (other notebooks)
+│
+├── data/                  # (Optional) Data files for experiments
+│   └── ...
+│
+├── figures/               # (Optional) Generated figures and plots
+│   └── ...
+│
+├── LICENSE
+└── README.md 
+```
 
-# Previous Work
+## Previous Work
 
 1. Sadtler, P. T., Quick, K. M., Golub, M. D., Chase, S. M., Ryu, S. I., Tyler-Kabara, E. C., Yu, B. M., & Batista, A. P. (2014). Neural constraints on learning. Nature, 512(7515), 423–426. https://doi.org/10.1038/nature13665
 

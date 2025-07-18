@@ -8,7 +8,7 @@ class Decoder:
     """
     Decoder for a recurrent neural network.
     """
-    def __init__(self, N: int = 800, N_out: int = 2, reduced_dim: int = 10):
+    def __init__(self, N: int = 800, N_out: int = 2, reduced_dim: int = 10, W: np.ndarray = None):
         """
         Instantiate a decoder for the RNN. Responsible for decoding the output
         of th   e RNN to target coordinates. Randomly initializes the output weights,
@@ -21,8 +21,19 @@ class Decoder:
         self.N = N
         self.N_out = N_out
         self.reduced_dim = reduced_dim
-        self.W = None
+        self.W = W
         self.is_trained = False
+
+    def set_initial_weights(self, target_max_radius: float = 0.2):
+        """
+        Set initial weights for the decoder.
+        Randomly initializes the output weights and scales them based on the
+        target maximum radius.
+        Parameters:
+          target_max_radius: maximum radius for scaling the weights
+        """
+        self.W = np.random.randn(self.N_out, self.N)
+        self.W *= (0.04 * (target_max_radius / 0.2)) / np.linalg.norm(self.W)
   
 
     def get_feedback_weights(self) -> np.ndarray:
@@ -31,8 +42,8 @@ class Decoder:
         Returns:
           W: feedback weights matrix of shape (N_out, N)
         """
-        if not self.is_trained:
-            raise ValueError("Decoder is not trained yet.")
+        if self.W is None:
+            raise ValueError("Decoder weights are not initialized.")
         return np.linalg.pinv(self.W)
 
 
@@ -48,7 +59,7 @@ class Decoder:
           W: trained output weights matrix of shape (N_out, N)
           mse: mean squared error of the predictions
         """
-        n_trials, n_timesteps, n_neurons = neural_activity.shape
+        n_trials, n_timesteps, _n_neurons = neural_activity.shape
 
         # flatten data for regression
         X = np.zeros((n_trials * n_timesteps, self.N))
@@ -82,7 +93,7 @@ class Decoder:
         
         return neural_activity @ self.W.T
 
-    def decode(self, manifold_dict: dict) -> np.ndarray:
+    def decode(self, manifold_dict: dict, readout_matrix: np.ndarray) -> np.ndarray:
         """
         Decode the neural activity manifold to target coordinates.
         Parameters:
@@ -91,9 +102,13 @@ class Decoder:
         Returns:
           result: decoded target coordinates of shape (trials, tsteps, N_out)
         """
-        D = self.W[:, :self.reduced_dim]
-        P = manifold_dict["evectors"].real.T
-        T = D @ P
+        if readout_matrix is not None:    
+          P = manifold_dict["evectors"].real.T
+          D = np.zeros((self.reduced_dim, self.N))
+          D[:, self.reduced_dim] = self.W[:, :self.reduced_dim]
+          T = D @ P
+        else:
+          T = readout_matrix
         # what is the shape of result?
         result = manifold_dict["activity"] @ T.T
         return result
@@ -105,36 +120,24 @@ class ManifoldPerturbation:
     Supports both within-manifold and outside-manifold perturbations.
     """
 
-    def __init__(self, N: int, reduced_dim: int):
+    def __init__(self, N: int, reduced_dim: int, evectors: np.ndarray, decoder_weights: np.ndarray):
         """
         Initialize the perturbation handler.
         Parameters:
           N: number of neurons in the RNN
           reduced_dim: number of principal components to use for perturbations
+          evectors: eigenvectors of the covariance matrix of the neural activity
+          decoder_weights: weights of the decoder
         """
         self.N = N
         self.reduced_dim = reduced_dim
         self.manifold_basis = None
         self.decoder_matrix = None
         self.original_transform = None
-
-
-    def set_manifold_basis(self, eigenvectors):
-        """Set the manifold basis from PCA eigenvectors of neural activity."""
-        self.manifold_basis = eigenvectors.real.T
-
-    def set_decoder_matrix(self, decoder_weights: np.ndarray):
-        """Set the decoder weights matrix (from a trained decoder)."""
-        self.decoder_matrix = np.zeros((decoder_weights.shape[0], self.N))
-        self.decoder_matrix[:, :self.reduced_dim] = decoder_weights
-
-    def compute_original_transform(self):
-        """Compute original transformation matrix."""
-        if self.manifold_basis is None or self.decoder_matrix is None:
-            raise ValueError("Set manifold basis and decoder matrix first.")
-        
-        self.original_transform = self.decoder_matrix @ self.manifold_basis
-        return self.original_transform
+        self.manifold_basis = evectors.real.T # P
+        self.decoder_matrix = np.zeros((reduced_dim, N)) # D
+        self.decoder_matrix = decoder_weights[:, :reduced_dim]
+        self.original_transform = self.decoder_matrix @ self.manifold_basis # T
 
     def within_manifold_perturbation(self, seed: int) -> np.ndarray:
         """
@@ -185,7 +188,7 @@ class ManifoldPerturbation:
 
         return T_outside, perm_matrix
 
-    def find_balanced_perturbations(self, activity, targets, trial_order, runs):
+    def find_balanced_perturbations(self, activity, targets, trial_order, runs = 200):
         """
         Find perturbations seeds that give similar performance degradation.
 
@@ -212,10 +215,16 @@ class ManifoldPerturbation:
         dif = np.abs(costs - np.mean(costs))
         idx = np.argsort(dif, axis=0)
 
+        T_within, permute_within = self.within_manifold_perturbation(seed=idx[0, 0])
+        T_outside, permute_outside = self.outside_manifold_perturbation(seed=idx[0, 1])
         return {
-            "within_seed": idx[0, 0],
-            "outside_seed": idx[0, 1],
-            "all_costs": costs,
+            "within_manifold_perturbation": T_within,
+            "outside_manifold_perturbation": T_outside,
+            "permute_within": permute_within,
+            "permute_outside": permute_outside,
+            "costs": costs,
+            "seed_within": idx[0, 0],
+            "seed_outside": idx[0, 1]
         }
         
 # %%

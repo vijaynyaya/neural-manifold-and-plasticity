@@ -30,11 +30,12 @@ class RNN:
         self.W_in = 2 * (np.random.rand(self.N, self._N_in) - 0.5)
 
         # create recurrent weights matrix
-        mask = np.random.rand(self.N, self.N) < self.p
+        mask = (np.random.rand(self.N, self.N) < self.p).astype(float)
         np.fill_diagonal(mask, np.zeros(self.N)) # No self-connections
         self.mask = mask
+        self.W = np.random.randn(self.N, self.N) * mask
         # scaled by 1/sqrt(K) to maintain stable dynamics
-        self.W = self.g / np.sqrt(self.K) * np.random.randn(self.N, self.N) * mask
+        self.W *= self.g / np.sqrt(self.K)
 
     
     def forward(self, r0: np.ndarray, x: np.ndarray):
@@ -135,7 +136,8 @@ class RNN:
             1.0 / lr * np.eye(len(row))
             for row in W_p
         ]
-        
+        feedback_weights = decoder.get_feedback_weights()  # pseudo-inverse feedback weights
+
         # shuffle the order of trials to avoid training on the same target cue back-to-back
         trial_order = np.random.choice(range(stim.shape[0]), trials, replace=True)
 
@@ -145,7 +147,7 @@ class RNN:
             # initialization
             loss = 0.
             r = 2.0 * (np.random.rand(self.N) - 0.5) # random initial condition
-            stim_idx = trial_order[t]
+            stim_idx = trial_order[t] # stimulus index basically means which target cue to present
 
             # Run trial
             for i in range(1, tsteps):
@@ -157,8 +159,8 @@ class RNN:
                 # combination of activity across all neurons to match some waveform.
                 if i > pulse_length and i % 2 == 0:
                     c = decoder.W @ z                        # decoded 2d output
-                    err_c = c - targets[stim_idx, i]         # diff from target
-                    err_n = decoder.feedback_weights @ err_c # neural error
+                    err_2d = c - targets[stim_idx, i]         # diff from target
+                    err_n = feedback_weights @ err_2d # neural error
                     loss += np.mean(err_n ** 2)
                     for j in range(self.N):
                         # per-neuron RLS update
@@ -172,6 +174,7 @@ class RNN:
             loss_trajectory[t] = loss
             print(f"Trial {t+1}/{trials}: Loss = {loss:.5f}")
         return loss_trajectory
+
 
     def compute_manifold(self, trials: int, stim: np.ndarray, pulse_length: int):
         """
@@ -208,6 +211,7 @@ class RNN:
         activity_matrix = activity_matrix.reshape(-1, self.N)  # Flatten to (trials * post_cue_steps, N)
         cov = np.cov(activity_matrix.T)  # Compute covariance matrix
         evals, evectors = np.linalg.eig(cov) # Eigen decomposition
+        # !! eigenvalues are not sorted
         pr = np.round(np.sum(evals) ** 2 / np.sum(evals ** 2)).astype(int)  # Projected rank
         xi = activity_matrix @ evectors.real # Projected data
         return {
@@ -231,6 +235,7 @@ class RNN:
             dt=self.dt, W_in=self.W_in, W=self.W, N_in=self._N_in
         )
         
+
     def load(self, filename):
         """Load network parameters and weights."""
         net = np.load(filename + '.npz')
