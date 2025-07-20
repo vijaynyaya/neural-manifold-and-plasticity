@@ -59,16 +59,16 @@ class Decoder:
           W: trained output weights matrix of shape (N_out, N)
           mse: mean squared error of the predictions
         """
-        n_trials, n_timesteps, _n_neurons = neural_activity.shape
+        n_trials, n_timesteps, _n_dims = neural_activity.shape
 
         # flatten data for regression
-        X = np.zeros((n_trials * n_timesteps, self.N))
+        X = np.zeros((n_trials * n_timesteps, _n_dims))
         y = np.zeros((n_trials * n_timesteps, self.N_out))
         
         for i in range(n_trials):
             start_idx = i * n_timesteps
             end_idx = (i + 1) * n_timesteps
-            X[start_idx:end_idx, :] = neural_activity[i, :, :]
+            X[start_idx:end_idx, :] = neural_activity[i]
             y [start_idx:end_idx, :] = targets[trial_order[i]]
 
         # Train linear regression
@@ -93,7 +93,7 @@ class Decoder:
         
         return neural_activity @ self.W.T
 
-    def decode(self, manifold_dict: dict, readout_matrix: np.ndarray) -> np.ndarray:
+    def decode(self, manifold_dict: dict, readout_matrix: np.ndarray = None) -> np.ndarray:
         """
         Decode the neural activity manifold to target coordinates.
         Parameters:
@@ -102,10 +102,10 @@ class Decoder:
         Returns:
           result: decoded target coordinates of shape (trials, tsteps, N_out)
         """
-        if readout_matrix is not None:    
+        if readout_matrix is None:    
           P = manifold_dict["evectors"].real.T
-          D = np.zeros((self.reduced_dim, self.N))
-          D[:, self.reduced_dim] = self.W[:, :self.reduced_dim]
+          D = np.zeros((self.N_out, self.N))
+          D[:, :self.reduced_dim] = self.W
           T = D @ P
         else:
           T = readout_matrix
@@ -120,24 +120,23 @@ class ManifoldPerturbation:
     Supports both within-manifold and outside-manifold perturbations.
     """
 
-    def __init__(self, N: int, reduced_dim: int, evectors: np.ndarray, decoder_weights: np.ndarray):
+    def __init__(self, N: int, N_out: int, reduced_dim: int, evectors: np.ndarray, decoder_weights: np.ndarray):
         """
         Initialize the perturbation handler.
         Parameters:
           N: number of neurons in the RNN
+          N_out: number of output dimensions (e.g., 2 for x and y coordinates)
           reduced_dim: number of principal components to use for perturbations
           evectors: eigenvectors of the covariance matrix of the neural activity
           decoder_weights: weights of the decoder
         """
         self.N = N
+        self.N_out = N_out
         self.reduced_dim = reduced_dim
-        self.manifold_basis = None
-        self.decoder_matrix = None
-        self.original_transform = None
-        self.manifold_basis = evectors.real.T # P
-        self.decoder_matrix = np.zeros((reduced_dim, N)) # D
-        self.decoder_matrix = decoder_weights[:, :reduced_dim]
-        self.original_transform = self.decoder_matrix @ self.manifold_basis # T
+        self.P = evectors.real.T # P
+        self.D = np.zeros((self.N_out, N)) # D
+        self.D[:, :reduced_dim] = decoder_weights[:, :reduced_dim]
+        self.T = self.D @ self.P # T
 
     def within_manifold_perturbation(self, seed: int) -> np.ndarray:
         """
@@ -155,12 +154,12 @@ class ManifoldPerturbation:
         np.random.shuffle(perm_matrix)
 
         # apply permutation to the decoder matrix
-        D_permute = self.decoder_matrix.copy()
+        D_permute = self.D.copy()
         D_permute[:self.reduced_dim, :self.reduced_dim] = \
-            self.decoder_matrix[:self.reduced_dim, :self.reduced_dim] @ perm_matrix
+            self.D[:self.reduced_dim, :self.reduced_dim] @ perm_matrix
         
         # computer perturbed transform
-        T_within = D_permute @ self.manifold_basis
+        T_within = D_permute @ self.P
 
         return T_within, perm_matrix
 
@@ -177,14 +176,14 @@ class ManifoldPerturbation:
         """
 
         # Create permutation matrix for full network
-        perm_matrix = np.eye(self.network_size)
+        perm_matrix = np.eye(self.N)
         np.random.shuffle(perm_matrix)
 
         # Apply permutation to the manifold basis
-        P_permute = self.manifold_basis @ perm_matrix
+        P_permute = self.P @ perm_matrix
 
         # Compute perturbed transform
-        T_outside = self.decoder_matrix @ P_permute
+        T_outside = self.D @ P_permute
 
         return T_outside, perm_matrix
 
@@ -222,7 +221,7 @@ class ManifoldPerturbation:
             "outside_manifold_perturbation": T_outside,
             "permute_within": permute_within,
             "permute_outside": permute_outside,
-            "costs": costs,
+            # "costs": costs,
             "seed_within": idx[0, 0],
             "seed_outside": idx[0, 1]
         }

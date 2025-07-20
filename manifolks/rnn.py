@@ -38,19 +38,19 @@ class RNN:
         self.W *= self.g / np.sqrt(self.K)
 
     
-    def forward(self, r0: np.ndarray, x: np.ndarray):
+    def forward(self, r0: np.ndarray, ext: np.ndarray):
         """
         Update neural dynamics for one time step.
-        Implements: tau * dr/dt = -r + W @ tanh(r) + W_in @ X
+        Implements: tau * dr/dt = -r + W @ tanh(r) + W_in @ I_ext
 
         Parameters
-        * x: external input vector of shape (N_in,)
+        * ext: external input vector of shape (N_in,)
         """
         # Euler integration of dynamics
         dr = self.dt/self.tau * (
             -r0 + # decay term
             np.dot(self.W, self.act_fn(r0)) + # recurrent input
-            np.dot(self.W_in, x) # external input (target cue)
+            np.dot(self.W_in, ext) # external input (target cue)
         )
         r1 = r0 + dr
         z1 = self.act_fn(r1)
@@ -69,17 +69,17 @@ class RNN:
         assert stim.shape == (nsteps, self._N_in), "Stimulus shape does not match the expected number of input size"
         
         # Network's Initial Conditions (Neural Firing Rates)
-        r0 = 2.0 * (np.random.randn(self.N) - 0.5) if r0 is None else r0
-        z0 = self.act_fn(r0)
+        r = 2.0 * (np.random.randn(self.N) - 0.5) if r0 is None else r0
+        z = self.act_fn(r)
 
         # Run Simulation
         # record changes in firing rate over time
         r_trajectory = np.zeros((nsteps, self.N))
         z_trajectory = np.zeros((nsteps, self.N))
-        r_trajectory[0, :] = r0
-        z_trajectory[0, :] = z0
+        r_trajectory[0, :] = r
+        z_trajectory[0, :] = z
         for i in range(1, nsteps):
-            r, z = self.forward(r0=r, x=stim[i])
+            r, z = self.forward(r0=r, ext=stim[i])
             r_trajectory[i, :], z_trajectory[i, :] = r, z
         
         return steps, r_trajectory, z_trajectory
@@ -151,7 +151,7 @@ class RNN:
 
             # Run trial
             for i in range(1, tsteps):
-                r, z = self.forward(r0=r, x=stim[stim_idx, i])
+                r, z = self.forward(r0=r, ext=stim[stim_idx, i])
 
                 # FORCE learning, after cue period, every other timestep
                 # Note that this trial-based RLS update for each neuron is different
@@ -172,7 +172,6 @@ class RNN:
                         P[j] -= np.outer(pz, pz) / norm        # update inverse correlation matrix
                         self.W[j, W_p[j]] -= err_n[j] * pz / norm # update connection strengths (weights)
             loss_trajectory[t] = loss
-            print(f"Trial {t+1}/{trials}: Loss = {loss:.5f}")
         return loss_trajectory
 
 

@@ -73,8 +73,8 @@ def create_target_trajectories_center_reach_out(
       sigma = target_max / 8
       radius[pulse_steps:] = target_max * np.exp(-((xx - mu) ** 2) / (2 * sigma ** 2))
     case "constant":
-      # Constant radius after pulse
-      radius[:pulse_steps] = target_max
+      # moves at constant speed
+      radius[pulse_steps:] = np.ones(tsteps-pulse_steps) * target_max
   # Create target trajectories for each direction
   trajectories = np.zeros((n_targets, tsteps, 2))
   for i, angle in enumerate(angles):
@@ -122,7 +122,7 @@ def cost(result: np.ndarray, target_traj: np.ndarray, trial_order: np.ndarray) -
     Mean squared error across all trials
   """
   total_cost = 0.0
-  trials = len(result.shape[0])
+  trials = result.shape[0]
   for t in range(trials):
     target_cue_idx = trial_order[t]
     error = result[t, :, :] - target_traj[target_cue_idx, :, :]
