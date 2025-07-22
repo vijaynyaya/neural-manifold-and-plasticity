@@ -1,7 +1,7 @@
 # %%
 import numpy as np
 import sklearn.linear_model as lm
-from .task import cost
+from manifolks.task import cost
 
 # %%
 class Decoder:
