@@ -210,10 +210,11 @@ class RNN:
         activity_matrix = activity_matrix.reshape(-1, self.N)  # Flatten to (trials * post_cue_steps, N)
         cov = np.cov(activity_matrix.T)  # Compute covariance matrix
         evals, evectors = np.linalg.eig(cov) # Eigen decomposition
+        evals, evectors = evals.real, evectors.real # Remove complex part from eigenvaleus and eigenvectors
         idx = evals.argsort()[::-1] # Index the eigenvalues in descending order
         evals, evectors = evals[idx], evectors[:, idx] # Sort eigenvaleus and eigenvectors
         pr = np.round(np.sum(evals) ** 2 / np.sum(evals ** 2)).astype(int)  # Projected rank
-        xi = activity_matrix @ evectors.real # Projected data
+        xi = activity_matrix @ evectors # Projected data
         return {
             "acivity_2d": activity_matrix,
             "activity": activity_matrix.reshape(trials, -1, self.N),
