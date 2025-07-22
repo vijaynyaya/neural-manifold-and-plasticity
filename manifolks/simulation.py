@@ -12,7 +12,7 @@ from manifolks.task import (
     cost,
     TrajectoryType,
 )
-from .rnn import RNN
+from manifolks.rnn import RNN
 
 # Output Directory
 OUT_DIR = Path(__file__).parents[1] / "data"
@@ -44,7 +44,8 @@ N_TRIALS_RELEARN = 80
 LEARNING_RATE_REC = 20.0
 
 
-def main():
+if __name__ == "__main__":
+    
     np.random.seed(RANDOM_SEED)
 
     stim = create_stim_center_reach_out(T_STEPS, PULSE_LENGTH, TARGETS)
