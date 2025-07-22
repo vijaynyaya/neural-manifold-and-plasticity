@@ -1,5 +1,5 @@
 import numpy as np
-from .decoder import Decoder
+from manifolks.decoder import Decoder
 
 class RNN:
     """

@@ -5,8 +5,8 @@ Simulation using Perfect Feedback Signal (Fig 2)
 # %% import packages
 import numpy as np
 from pathlib import Path
-from .decoder import Decoder, ManifoldPerturbation
-from .task import (
+from manifolks.decoder import Decoder, ManifoldPerturbation
+from manifolks.task import (
     create_stim_center_reach_out,
     create_target_trajectories_center_reach_out,
     cost,

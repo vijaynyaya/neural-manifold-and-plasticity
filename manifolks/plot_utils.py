@@ -10,12 +10,14 @@ def plot_explained_variance(eigenvalues, target_variance=0.8):
     print(f"Number of components needed for {target_variance} % explained - {required_components}")
     
     # Plot settings
-    plt.plot(cumulative_explained_variance, label="Cumulative Explained Variance")
-    plt.pltvline(required_components, linestyle="--", color="black", label=f"{target_variance} % Threshold")
+    fig, ax = plt.subplots()
+    ax.plot(cumulative_explained_variance, label="Cumulative Explained Variance")
+    # plot a vertical line at the required components
+    ax.axvline(required_components, linestyle="--", color="black", label=f"{target_variance} % Threshold")
 
     yticks = np.arange(0, 1.1, 0.25)
-    plt.yticks(yticks, yticks, fontsize=14)
-    plt.xlabel("Number of components", fontsize=18)
-    plt.ylabel("Explained variance (%)", fontsize=18)
-    plt.legend()
+    ax.set_yticks(yticks, yticks, fontsize=14)
+    ax.set_xlabel("Number of components", fontsize=18)
+    ax.set_ylabel("Explained variance (%)", fontsize=18)
+    ax.legend()
     plt.show()
