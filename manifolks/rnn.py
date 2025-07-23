@@ -212,7 +212,7 @@ class RNN:
         evals, evectors = np.linalg.eig(cov) # Eigen decomposition
         idx = evals.argsort()[::-1] # Index the eigenvalues in descending order
         evals, evectors = evals[idx], evectors[:, idx] # Sort eigenvaleus and eigenvectors
-        pr = np.round(np.sum(evals) ** 2 / np.sum(evals ** 2)).astype(int)  # Projected rank
+        pr = np.round(np.sum(evals.real) ** 2 / np.sum(evals.real ** 2)).astype(int)  # Projected rank
         xi = activity_matrix @ evectors.real # Projected data
         return {
             "acivity_2d": activity_matrix,

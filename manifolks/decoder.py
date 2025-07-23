@@ -105,7 +105,7 @@ class Decoder:
         if readout_matrix is None:    
           P = manifold_dict["evectors"].real.T
           D = np.zeros((self.N_out, self.N))
-          D[:, :self.reduced_dim] = self.W
+          D[:, :self.reduced_dim] = self.W[:, :self.reduced_dim]
           T = D @ P
         else:
           T = readout_matrix
